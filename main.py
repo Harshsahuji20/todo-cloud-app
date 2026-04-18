@@ -17,7 +17,7 @@ app = FastAPI(title="Cloud Based To-Do List API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For production, replace with specific origins
+    allow_origins=["*"],  # allow all (important)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
