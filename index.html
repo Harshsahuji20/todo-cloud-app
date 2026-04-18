@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Based To-Do List</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --card-bg: #fff;
+            --border-color: #ddd;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 2rem;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        .btn-add {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .task-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            gap: 10px;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-content {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .task-title {
+            cursor: pointer;
+        }
+
+        .task-title.completed {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-edit {
+            background-color: #f1c40f;
+            color: #fff;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+        }
+
+        .btn-delete {
+            background-color: var(--danger-color);
+            color: white;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+        }
+
+        .edit-input {
+            flex-grow: 1;
+            padding: 6px;
+            border: 1px solid var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Cloud Based To-Do List</h1>
+    
+    <div class="input-group">
+        <input type="text" id="taskInput" placeholder="Add a new task...">
+        <button class="btn-add" onclick="addTask()">Add Task</button>
+    </div>
+
+    <ul id="taskList" class="task-list">
+        <!-- Tasks will be loaded here -->
+    </ul>
+</div>
+
+<script>
+    // Configuration: Change this if your API is on a different domain
+    const API_BASE_URL = window.location.origin;
+
+    async function fetchTasks() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/tasks`);
+            const tasks = await response.json();
+            renderTasks(tasks);
+        } catch (error) {
+            console.error('Error fetching tasks:', error);
+        }
+    }
+
+    async function addTask() {
+        const input = document.getElementById('taskInput');
+        const title = input.value.trim();
+        if (!title) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/tasks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, completed: false })
+            });
+            if (response.ok) {
+                input.value = '';
+                fetchTasks();
+            }
+        } catch (error) {
+            console.error('Error adding task:', error);
+        }
+    }
+
+    async function toggleTask(id, currentStatus) {
+        try {
+            await fetch(`${API_BASE_URL}/tasks/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: !currentStatus })
+            });
+            fetchTasks();
+        } catch (error) {
+            console.error('Error toggling task:', error);
+        }
+    }
+
+    async function deleteTask(id) {
+        if (!confirm('Are you sure you want to delete this task?')) return;
+        try {
+            await fetch(`${API_BASE_URL}/tasks/${id}`, { method: 'DELETE' });
+            fetchTasks();
+        } catch (error) {
+            console.error('Error deleting task:', error);
+        }
+    }
+
+    function editTask(id, currentTitle) {
+        const li = document.getElementById(`task-${id}`);
+        const contentDiv = li.querySelector('.task-content');
+        const actionsDiv = li.querySelector('.task-actions');
+
+        contentDiv.innerHTML = `<input type="text" class="edit-input" value="${currentTitle}" id="edit-${id}">`;
+        actionsDiv.innerHTML = `
+            <button class="btn-add" style="padding: 6px 10px; font-size: 0.8rem;" onclick="saveTask('${id}')">Save</button>
+            <button class="btn-delete" style="padding: 6px 10px; font-size: 0.8rem;" onclick="fetchTasks()">Cancel</button>
+        `;
+    }
+
+    async function saveTask(id) {
+        const newTitle = document.getElementById(`edit-${id}`).value.trim();
+        if (!newTitle) return;
+
+        try {
+            await fetch(`${API_BASE_URL}/tasks/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle })
+            });
+            fetchTasks();
+        } catch (error) {
+            console.error('Error saving task:', error);
+        }
+    }
+
+    function renderTasks(tasks) {
+        const list = document.getElementById('taskList');
+        list.innerHTML = '';
+        tasks.forEach(task => {
+            const li = document.createElement('li');
+            li.className = 'task-item';
+            li.id = `task-${task._id}`;
+            li.innerHTML = `
+                <div class="task-content">
+                    <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="toggleTask('${task._id}', ${task.completed})">
+                    <span class="task-title ${task.completed ? 'completed' : ''}" onclick="toggleTask('${task._id}', ${task.completed})">${task.title}</span>
+                </div>
+                <div class="task-actions">
+                    <button class="btn-edit" onclick="editTask('${task._id}', '${task.title.replace(/'/g, "\\'")}')">Edit</button>
+                    <button class="btn-delete" onclick="deleteTask('${task._id}')">Delete</button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    // Initial load
+    fetchTasks();
+</script>
+
+</body>
+</html>
